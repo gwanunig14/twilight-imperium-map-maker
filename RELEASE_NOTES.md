@@ -13,7 +13,7 @@
 - Renamed Distribution to Placement Method and clarified that Balanced is the optimizer while Even/Tiered selects its target.
 - Disabled Slice Goal while Random placement is selected because it is not used in that mode.
 
-# TI4 Map Forge 0.2.0
+# TI4 Map Maker 0.2.0
 
 ## Freeform board rebuild
 
