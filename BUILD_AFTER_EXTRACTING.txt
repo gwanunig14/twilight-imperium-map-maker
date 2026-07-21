@@ -1,0 +1,9 @@
+This source package intentionally does not include node_modules or the stale pre-update docs build.
+
+After extracting:
+
+  npm install
+  npm test
+  npm run build
+
+The build command recreates docs/ for GitHub Pages.

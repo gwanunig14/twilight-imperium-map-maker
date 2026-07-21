@@ -4,6 +4,7 @@ export type DistributionMode = "random" | "balanced";
 export type BalanceMode = "even" | "tiered";
 export type EquidistantMode = "split" | "included";
 export type EditorTool = "player" | "mecatol" | "sector" | "warp" | "erase";
+export type StandardLayoutId = "standard-3" | "standard-4" | "standard-5" | "standard-6" | "standard-7" | "standard-8";
 
 export type Planet = {
   name: string;

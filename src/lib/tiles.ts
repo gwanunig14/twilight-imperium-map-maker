@@ -135,9 +135,12 @@ export function featureCount(tile: SystemTile, key: FeatureKey): number {
   }
 }
 
-export function poolFeatureCounts(tiles: SystemTile[]): Record<string, number> {
+export function poolFeatureCounts(
+  tiles: SystemTile[],
+  keys: FeatureKey[] = availableFeatureKeys(tiles),
+): Record<string, number> {
   const result: Record<string, number> = {};
-  for (const key of availableFeatureKeys(tiles)) {
+  for (const key of keys) {
     result[key] = tiles.reduce((sum, tile) => sum + featureCount(tile, key), 0);
   }
   return result;

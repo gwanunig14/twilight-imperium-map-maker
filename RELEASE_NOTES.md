@@ -1,3 +1,15 @@
+## 0.3.0 — Presets, save/load, and predictable regeneration
+
+- Added editable official layout presets for standard 3-, 4-, 5-, 6-, 7-, and 8-player galaxies.
+- Added the correct Prophecy of Kings hyperlane faces and positions to the standard five- and seven-player presets.
+- Random tile selection now uses the official blue/red system mix when a standard preset is active and Red-backed systems remains Auto.
+- Optimized tile selection deliberately ignores the preset RAW ratio unless the user chooses an exact red-backed target.
+- Corrected the initial composition-state bug: composition controls now begin and remain on Auto rather than being initialized from a one-sector layout and stuck at zero.
+- Separated requested composition from generated counts and display the generated result beside each setting.
+- Regenerate Map now creates a fresh seed; Rebuild Seed reproduces the current map deterministically.
+- Added versioned JSON import that restores layouts, expansions, settings, warp lanes, seeds, generated placements, swaps, and replacements.
+- Added regression coverage for preset geometry and all official random blue/red pool counts.
+
 ## 0.2.2 — TI4 visual theme
 
 - Reworked the application palette around the base-game, Prophecy of Kings, and Thunder’s Edge box art.

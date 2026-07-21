@@ -6,7 +6,7 @@ The application keeps tile-pool composition and slice balancing separate from bo
 
 ## Freeform workflow
 
-1. Enable the boxes you are using.
+1. Enable the boxes you are using, then either choose an official 3–8 player layout preset or build a freeform layout.
 2. Use the placement ribbon to add:
    - **New Player** — adds the next home system from P1 through P8.
    - **Mecatol** — places or moves Mecatol Rex.
@@ -24,7 +24,7 @@ Removing a player renumbers every remaining home consecutively. Generation requi
 
 ### Tile selection
 
-- **Random** chooses a random legal pool while attempting to satisfy exact composition choices.
+- **Random** chooses a random legal pool while attempting to satisfy exact composition choices. When an official layout preset is still unmodified and Red-backed systems is Auto, it uses that setup’s official blue/red tile mix.
 - **Optimized** searches the eligible tile library for a pool that satisfies the requested composition and gives the distributor stronger balancing material.
 
 Composition controls support Auto or exact counts for red-backed systems, anomalies and anomaly types, wormholes and wormhole types, tech-specialty systems and individual icons, legendary systems, empty systems, and one-, two-, and three-planet systems. Numeric choices are limited by the enabled tile library and current number of Sector positions.
@@ -58,6 +58,10 @@ The package includes the original Prophecy of Kings A/B artwork and connection d
 
 Each physical warp-lane tile may appear only once. Rotation is available in 60-degree increments.
 
+## Seeds and save files
+
+**Regenerate Map** creates a new seed and a different map. **Rebuild Seed** reproduces the current seed. JSON export and import preserve the layout, warp lanes, settings, seed, generated placements, and manual changes.
+
 ## Manual editing after generation
 
 Generated system tiles can be drag-swapped. Clicking without dragging opens the tile inspector; the unused-system browser is shown only after pressing **Select Different System**. Every swap or replacement immediately recalculates slice scores. Replacements are treated as manual overrides and may intentionally depart from the original composition targets.
@@ -89,6 +93,7 @@ npm run build
 - `src/lib/distribution.ts` — random/balanced placement over discovered slices.
 - `src/lib/scoring.ts` — slice metrics and even/tiered objectives.
 - `src/lib/hyperlanes.ts` — physical warp-lane inventory and edge connections.
+- `src/lib/layoutPresets.ts` — official 3–8 player board shapes and RAW random-pool compositions.
 
 ## Source credit
 
