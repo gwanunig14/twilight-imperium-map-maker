@@ -1,4 +1,4 @@
-# TI4 Map Forge
+# TI4 Map Maker
 
 A personal-use, freeform Twilight Imperium Fourth Edition galaxy builder written in React, TypeScript, and Vite.
 
