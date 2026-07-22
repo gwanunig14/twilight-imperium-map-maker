@@ -57,6 +57,22 @@ function representativePenalty(
   return result;
 }
 
+
+function poolWithExactRedCount(
+  eligible: SystemTile[],
+  poolSize: number,
+  redCount: number,
+  rng: () => number,
+): SystemTile[] {
+  const red = shuffle(eligible.filter((tile) => tile.type === "red"), rng);
+  const blue = shuffle(eligible.filter((tile) => tile.type === "blue"), rng);
+  const blueCount = poolSize - redCount;
+  if (redCount < 0 || blueCount < 0 || red.length < redCount || blue.length < blueCount) {
+    throw new Error(`The requested pool needs ${blueCount} blue and ${redCount} red systems, but the enabled tile library cannot supply that composition.`);
+  }
+  return shuffle([...red.slice(0, redCount), ...blue.slice(0, blueCount)], rng);
+}
+
 export type PoolSelectionResult = {
   tiles: SystemTile[];
   targetCounts: Record<string, number>;
@@ -83,6 +99,9 @@ export function selectTilePool(
 
   const requested = activeTargets(targets);
   const hasTargets = requested.length > 0;
+  const exactRedCount = mode === "random" && typeof targets.redSystems === "number"
+    ? targets.redSystems
+    : null;
   if (!hasTargets && mode === "random") {
     const tiles = shuffle(eligible, rng).slice(0, poolSize);
     return { tiles, targetCounts: poolFeatureCounts(tiles), unmetTargets: [] };
@@ -97,7 +116,9 @@ export function selectTilePool(
     : Math.min(5000, Math.max(1000, poolSize * 100));
 
   for (let candidate = 0; candidate < candidateCount; candidate += 1) {
-    let pool = shuffle(eligible, rng).slice(0, poolSize);
+    let pool = exactRedCount === null
+      ? shuffle(eligible, rng).slice(0, poolSize)
+      : poolWithExactRedCount(eligible, poolSize, exactRedCount, rng);
     let poolIds = new Set(pool.map((tile) => tile.id));
     let currentPenalty = compositionPenalty(pool, targets);
     let localBest = [...pool];
@@ -106,15 +127,18 @@ export function selectTilePool(
 
     for (let iteration = 0; iteration < iterations; iteration += 1) {
       const poolIndex = Math.floor(rng() * poolSize);
-      let replacement = eligible[Math.floor(rng() * eligible.length)];
+      const previous = pool[poolIndex];
+      const replacementOptions = exactRedCount === null
+        ? eligible
+        : eligible.filter((tile) => tile.type === previous.type);
+      let replacement = replacementOptions[Math.floor(rng() * replacementOptions.length)];
       let guard = 0;
       while (poolIds.has(replacement.id) && guard < 60) {
-        replacement = eligible[Math.floor(rng() * eligible.length)];
+        replacement = replacementOptions[Math.floor(rng() * replacementOptions.length)];
         guard += 1;
       }
       if (poolIds.has(replacement.id)) continue;
 
-      const previous = pool[poolIndex];
       const trial = [...pool];
       trial[poolIndex] = replacement;
       const trialPenalty = compositionPenalty(trial, targets);

@@ -1667,3 +1667,21 @@ input[type="range"],
 .map-legend .hyperlane-key {
   background: linear-gradient(135deg, #3b918f 0 50%, #d7a84d 50%);
 }
+
+.preset-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+.preset-controls select {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #0b0e15;
+  color: #f0e6d3;
+  padding: 8px 10px;
+}
+.notice-banner strong {
+  color: #f2c66c;
+}

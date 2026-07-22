@@ -1,4 +1,4 @@
-import { GeneratedMap } from "../types";
+import type { GeneratedMap } from "../types";
 
 interface TopBarProps {
   seed: string;
@@ -9,12 +9,11 @@ interface TopBarProps {
   setSeed: (s: string) => void;
   editLayout: () => void;
   resetLayout: () => void;
-  performGeneration: () => void;
+  performGeneration: (seedOverride?: string) => void;
 }
 
-export const freshSeed = () => {
-  return `${Date.now().toString(36)}-${Math.floor(Math.random() * 1_000_000).toString(36)}`;
-};
+export const freshSeed = () =>
+  `${Date.now().toString(36)}-${Math.floor(Math.random() * 1_000_000).toString(36)}`;
 
 export default function Topbar({
   seed,
@@ -30,7 +29,7 @@ export default function Topbar({
   return (
     <header className="topbar">
       <div>
-        <h1>TI4 Map Maker</h1>
+        <h1>Twilight Imperium IV Map Maker</h1>
       </div>
       <div className="topbar-actions">
         <label className="seed-field">
@@ -48,13 +47,23 @@ export default function Topbar({
           New seed
         </button>
         {phase === "generated" ? (
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={editLayout}
-          >
-            Edit Layout
-          </button>
+          <>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={isGenerating}
+              onClick={() => performGeneration()}
+            >
+              Rebuild Seed
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={editLayout}
+            >
+              Edit Layout
+            </button>
+          </>
         ) : (
           <button
             type="button"
@@ -68,7 +77,11 @@ export default function Topbar({
           type="button"
           className="primary-button generate-button"
           disabled={!canGenerate}
-          onClick={performGeneration}
+          onClick={() =>
+            phase === "generated"
+              ? performGeneration(freshSeed())
+              : performGeneration()
+          }
         >
           {isGenerating
             ? "Generating…"

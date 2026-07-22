@@ -19,7 +19,7 @@ const te = (
   side: id.endsWith("A") ? "A" : "B",
   source: "te",
   paths,
-  note,
+  imageUrl: `${import.meta.env.BASE_URL}warp-lanes/ST_${id}.webp`,
 });
 
 export const WARP_LANES: WarpLaneDefinition[] = [
@@ -99,28 +99,48 @@ export const WARP_LANES: WarpLaneDefinition[] = [
   // faces are intentionally omitted until their physical-tile pairing can be
   // verified from an authoritative component scan; guessing here would make
   // shortest-path ownership calculations wrong.
-  te("119A", [[4, 5]], "Official Thunder's Edge A-side schematic."),
-  te(
-    "120A",
-    [
-      [0, 4],
-      [1, 4],
-      [5, 4],
-    ],
-    "Official Thunder's Edge A-side schematic.",
-  ),
-  te("121A", [[2, 5]], "Official Thunder's Edge A-side schematic."),
-  te("122A", [[1, 2]], "Official Thunder's Edge A-side schematic."),
-  te("123A", [[1, 4]], "Official Thunder's Edge A-side schematic."),
-  te(
-    "124A",
-    [
-      [2, 5],
-      [3, 5],
-      [4, 5],
-    ],
-    "Official Thunder's Edge A-side schematic.",
-  ),
+  te("119A", [[1, 4]]),
+  te("119B", [
+    [0, 3],
+    [1, 4],
+  ]),
+  te("120A", [[2, 5]]),
+  te("120B", [
+    [0, 3],
+    [0, 4],
+    [3, 5],
+  ]),
+  te("121A", [[1, 5]]),
+  te("121B", [
+    [0, 3],
+    [0, 4],
+    [3, 5],
+  ]),
+  te("122A", [[1, 5]]),
+  te("122B", [
+    [0, 2],
+    [0, 4],
+  ]),
+  te("123A", [
+    [0, 2],
+    [2, 4],
+    [2, 5],
+  ]),
+  te("123B", [
+    [0, 2],
+    [0, 4],
+  ]),
+  te("124A", [
+    [0, 4],
+    [1, 4],
+    [2, 4],
+  ]),
+  te("124B", [
+    [0, 3],
+    [0, 4],
+    [1, 3],
+    [1, 4],
+  ]),
 ];
 
 export const WARP_LANE_BY_ID = new Map(

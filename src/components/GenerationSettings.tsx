@@ -39,7 +39,7 @@ export function GenerationSettings({
               value: "random",
               label: "Random",
               description:
-                "Choose the pool randomly while respecting exact composition targets.",
+                "Choose the pool randomly. Standard presets use their RAW blue/red mix when Red-backed systems is Auto.",
             },
             {
               value: "optimized",

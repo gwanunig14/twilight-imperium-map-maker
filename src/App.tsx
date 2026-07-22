@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { MapWorkspace } from "./components/MapWorkspace";
 import { LayoutSummary } from "./components/LayoutSummary";
+import { LayoutPresets } from "./components/LayoutPresets";
 import { CompositionPanel } from "./components/CompositionPanel";
 import { BalancePriorities } from "./components/BalancePriorities";
 import { GenerationSettings } from "./components/GenerationSettings";
@@ -23,6 +24,7 @@ import {
   PLAYER_COLORS,
 } from "./lib/mapSettings";
 import { createRng } from "./lib/rng";
+import { STANDARD_LAYOUT_BY_ID } from "./lib/layoutPresets";
 import { analyzeCustomMap } from "./lib/scoring";
 import { selectTilePool } from "./lib/selection";
 import {
@@ -40,6 +42,7 @@ import type {
   GeneratedMap,
   LayoutCell,
   SliceGeometry,
+  StandardLayoutId,
   SystemTile,
   WarpPlacement,
 } from "./types";
@@ -87,6 +90,8 @@ function App() {
     "Build a layout, then generate the map.",
   );
   const [isGenerating, setIsGenerating] = useState(false);
+  const [standardLayoutId, setStandardLayoutId] = useState<StandardLayoutId | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const eligible = useMemo(() => eligibleTiles(expansions), [expansions]);
   const tileById = useMemo(
@@ -126,6 +131,20 @@ function App() {
     targets,
     setTargets,
   } = useGenerationSettings(eligible, featureKeys, poolSize);
+  const standardPreset = standardLayoutId
+    ? STANDARD_LAYOUT_BY_ID.get(standardLayoutId) ?? null
+    : null;
+  const rawRandomPool =
+    selectionMode === "random" && standardPreset && targets.redSystems == null
+      ? standardPreset.rawPool
+      : null;
+  const generationTargets = useMemo(
+    () =>
+      rawRandomPool
+        ? { ...targets, redSystems: rawRandomPool.red }
+        : targets,
+    [rawRandomPool, targets],
+  );
   const selectedLayoutCell =
     cells.find((cell) => cell.id === selectedLayoutCellId) ?? null;
   const selectedTileId =
@@ -170,6 +189,7 @@ function App() {
   };
 
   const replaceCellAt = (coord: Axial, replacement: LayoutCell | null) => {
+    setStandardLayoutId(null);
     setCells((current) => {
       const key = coordKey(coord);
       const next = current.filter((cell) => coordKey(cell.coord) !== key);
@@ -182,6 +202,7 @@ function App() {
   };
 
   const removeCell = (cell: LayoutCell) => {
+    setStandardLayoutId(null);
     setCells((current) =>
       renumberPlayers(current.filter((item) => item.id !== cell.id)),
     );
@@ -204,6 +225,7 @@ function App() {
   };
 
   const moveSelectedCell = (coord: Axial) => {
+    setStandardLayoutId(null);
     const moving = cells.find((cell) => cell.id === movingCellId);
     if (!moving) {
       setMovingCellId(null);
@@ -265,6 +287,7 @@ function App() {
         beginMove(existing);
         return;
       }
+      setStandardLayoutId(null);
       setCells((current) => {
         const key = coordKey(coord);
         const next = current.filter(
@@ -353,7 +376,30 @@ function App() {
     setStatus("Expansion selection updated.");
   };
 
-  const performGeneration = () => {
+  const applyLayoutPreset = (id: StandardLayoutId) => {
+    const preset = STANDARD_LAYOUT_BY_ID.get(id);
+    if (!preset) return;
+    if (cells.length && !window.confirm(`Replace the current layout with ${preset.label}?`)) return;
+    if (preset.requiresPok && !expansions.has("pok")) {
+      setExpansions((current) => new Set(current).add("pok"));
+    }
+    setCells(preset.cells.map((cell) => ({
+      ...cell,
+      coord: { ...cell.coord },
+      warp: cell.warp ? { ...cell.warp } : undefined,
+    })));
+    setStandardLayoutId(id);
+    setGeneratedMap(null);
+    setPhase("design");
+    setSelectedSlotId(null);
+    setSelectedLayoutCellId(null);
+    setMovingCellId(null);
+    setReplacementOpen(false);
+    clearFailure();
+    setStatus(`${preset.label} loaded${preset.requiresPok ? ". Prophecy of Kings is enabled for its components." : "."}`);
+  };
+
+  const performGeneration = (seedOverride?: string) => {
     if (playerCount < 3) {
       setStatus("Place at least three player home systems before generating.");
       return;
@@ -376,6 +422,8 @@ function App() {
       return;
     }
 
+    const generationSeed = seedOverride ?? seed;
+    if (seedOverride) setSeed(seedOverride);
     setIsGenerating(true);
     setSelectedSlotId(null);
     setReplacementOpen(false);
@@ -383,10 +431,10 @@ function App() {
     clearFailure();
     window.setTimeout(() => {
       try {
-        const rng = createRng(seed);
+        const rng = createRng(generationSeed);
         const selection = selectTilePool(
           eligible,
-          targets,
+          generationTargets,
           selectionMode,
           poolSize,
           playerCount,
@@ -406,12 +454,12 @@ function App() {
           selectedTileIds: selection.tiles.map((tile) => tile.id),
           geometry: geometryResult.geometry!,
           analysis: distribution.analysis,
-          targetCounts: selection.targetCounts,
+          targetCounts: poolFeatureCounts(selection.tiles, featureKeys),
           unmetTargets: selection.unmetTargets.map((message) => {
             const [rawKey, rest] = message.split(":");
             return `${featureLabel(rawKey as FeatureKey)}:${rest ?? ""}`;
           }),
-          seed,
+          seed: generationSeed,
           generatedAt: new Date().toISOString(),
           manualOverride: false,
         };
@@ -446,8 +494,8 @@ function App() {
       ...map,
       placements,
       selectedTileIds,
-      targetCounts: poolFeatureCounts(selectedTiles),
-      unmetTargets: compositionDifferences(selectedTiles, targets),
+      targetCounts: poolFeatureCounts(selectedTiles, featureKeys),
+      unmetTargets: compositionDifferences(selectedTiles, generationTargets),
       analysis: analyzeCustomMap(
         placements,
         tileById,
@@ -527,6 +575,7 @@ function App() {
     )
       return;
     setCells([]);
+    setStandardLayoutId(null);
     setGeneratedMap(null);
     setPhase("design");
     setSelectedSlotId(null);
@@ -535,6 +584,104 @@ function App() {
     setReplacementOpen(false);
     clearFailure();
     setStatus("Layout cleared.");
+  };
+
+  const exportProject = () => {
+    downloadJson(`ti4-map-${generatedMap?.seed ?? seed}.json`, {
+      version: 2,
+      standardLayoutId,
+      expansions: [...expansions],
+      seed,
+      settings: {
+        selectionMode,
+        distributionMode,
+        balanceMode,
+        equidistantMode,
+        weights,
+        targets,
+      },
+      cells,
+      map: generatedMap,
+    });
+  };
+
+  const importProject = async (file: File) => {
+    try {
+      const payload = JSON.parse(await file.text());
+      if (!payload || ![1, 2].includes(payload.version)) throw new Error("Unsupported or missing save-file version.");
+      if (!Array.isArray(payload.cells)) throw new Error("The save file does not contain a board layout.");
+      const importedCells: LayoutCell[] = payload.cells.map((cell: LayoutCell) => {
+        if (!cell?.id || !cell.coord || !Number.isFinite(cell.coord.q) || !Number.isFinite(cell.coord.r)) throw new Error("The save file contains an invalid layout cell.");
+        if (!["home", "mecatol", "sector", "warp"].includes(cell.kind)) throw new Error("The save file contains an unknown layout-cell type.");
+        return { ...cell, coord: { ...cell.coord }, warp: cell.warp ? { ...cell.warp } : undefined };
+      });
+      const importedExpansionValues = Array.isArray(payload.expansions) ? payload.expansions : ["base", "pok", "te"];
+      const importedExpansions = new Set<ExpansionKey>(["base"]);
+      for (const value of importedExpansionValues) if (value === "pok" || value === "te") importedExpansions.add(value);
+      const settings = payload.settings ?? {};
+      const importedSelectionMode = settings.selectionMode === "random" ? "random" : "optimized";
+      const importedDistributionMode = settings.distributionMode === "random" ? "random" : "balanced";
+      const importedBalanceMode = settings.balanceMode === "tiered" ? "tiered" : "even";
+      const importedEquidistantMode = settings.equidistantMode === "included" ? "included" : "split";
+      const importedWeights = settings.weights ?? weights;
+      const importedTargets = settings.targets ?? {};
+      const importedPresetId = STANDARD_LAYOUT_BY_ID.has(payload.standardLayoutId) ? payload.standardLayoutId as StandardLayoutId : null;
+      const importedSeed = typeof payload.seed === "string" ? payload.seed : typeof payload.map?.seed === "string" ? payload.map.seed : freshSeed();
+      const importedEligible = eligibleTiles(importedExpansions);
+      const importedTileById = new Map(importedEligible.map((tile) => [tile.id, tile]));
+      let importedMap: GeneratedMap | null = null;
+      if (payload.map) {
+        const geometryResult = constructSliceGeometry(importedCells, importedEquidistantMode);
+        if (geometryResult.failure || !geometryResult.geometry) throw new Error("The saved generated map no longer has a valid slice geometry.");
+        const placements = payload.map.placements as Record<string, string>;
+        if (!placements || typeof placements !== "object") throw new Error("The save file does not contain valid system placements.");
+        const selectedTileIds = Object.values(placements);
+        if (new Set(selectedTileIds).size !== selectedTileIds.length) throw new Error("The saved map uses the same system tile more than once.");
+        const selectedTiles = selectedTileIds.map((id) => importedTileById.get(id));
+        if (selectedTiles.some((tile) => !tile)) throw new Error("The saved map uses a tile that is unavailable with its saved expansion settings.");
+        const importedPreset = importedPresetId ? STANDARD_LAYOUT_BY_ID.get(importedPresetId) : null;
+        const effectiveImportedTargets = importedSelectionMode === "random" && importedPreset && importedTargets.redSystems == null
+          ? { ...importedTargets, redSystems: importedPreset.rawPool.red }
+          : importedTargets;
+        importedMap = {
+          ...payload.map,
+          placements,
+          selectedTileIds,
+          geometry: geometryResult.geometry,
+          analysis: analyzeCustomMap(placements, importedTileById, geometryResult.geometry, importedWeights, importedBalanceMode),
+          targetCounts: poolFeatureCounts(
+            selectedTiles as SystemTile[],
+            availableFeatureKeys(importedEligible),
+          ),
+          unmetTargets: compositionDifferences(selectedTiles as SystemTile[], effectiveImportedTargets),
+          seed: importedSeed,
+          generatedAt: payload.map.generatedAt ?? new Date().toISOString(),
+          manualOverride: Boolean(payload.map.manualOverride),
+        };
+      }
+      setExpansions(importedExpansions);
+      setSelectionMode(importedSelectionMode);
+      setDistributionMode(importedDistributionMode);
+      setBalanceMode(importedBalanceMode);
+      setEquidistantMode(importedEquidistantMode);
+      setWeights(importedWeights);
+      setTargets(importedTargets);
+      setCells(renumberPlayers(importedCells));
+      setStandardLayoutId(importedPresetId);
+      setSeed(importedSeed);
+      setGeneratedMap(importedMap);
+      setPhase(importedMap ? "generated" : "design");
+      setSelectedSlotId(null);
+      setSelectedLayoutCellId(null);
+      setMovingCellId(null);
+      setReplacementOpen(false);
+      clearFailure();
+      setStatus(importedMap ? "Saved map imported." : "Saved layout imported.");
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Could not import that JSON file.");
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
   };
 
   const canGenerate = playerCount >= 3 && poolSize > 0 && !isGenerating;
@@ -589,6 +736,11 @@ function App() {
             warpLaneCount={warpCells.length}
             equidistantCount={splitPreview?.equidistantSlotIds.length ?? 0}
           />
+          <LayoutPresets
+            activePresetId={standardLayoutId}
+            disabled={phase === "generated" || isGenerating}
+            onApply={applyLayoutPreset}
+          />
           <TileLibrary
             expansions={expansions}
             isLocked={phase === "generated"}
@@ -611,6 +763,9 @@ function App() {
             poolSize={poolSize}
             groups={groups}
             targets={targets}
+            generatedCounts={generatedMap?.targetCounts}
+            selectionMode={selectionMode}
+            rawPool={standardPreset ? { ...standardPreset.rawPool, label: standardPreset.label } : null}
             onTargetsChange={setTargets}
             onChanged={() =>
               setStatus(
@@ -621,55 +776,38 @@ function App() {
 
           <BalancePriorities weights={weights} onChange={setWeights} />
 
-          {generatedMap && (
-            <section className="panel-section export-section">
-              <h2>Map Data</h2>
-              <button
-                type="button"
-                className="secondary-button full-button"
-                onClick={() =>
-                  downloadJson(`ti4-map-${generatedMap.seed}.json`, {
-                    version: 1,
-                    expansions: [...expansions],
-                    settings: {
-                      selectionMode,
-                      distributionMode,
-                      balanceMode,
-                      equidistantMode,
-                      weights,
-                      targets,
-                    },
-                    cells,
-                    map: generatedMap,
-                  })
-                }
-              >
-                Export map JSON
-              </button>
-              <button
-                type="button"
-                className="text-button full-button"
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    JSON.stringify({
-                      cells,
-                      placements: generatedMap.placements,
-                    }),
-                  )
-                }
-              >
-                Copy layout + placements
-              </button>
-              {generatedMap.unmetTargets.length > 0 && (
-                <div className="target-warning">
-                  <strong>Composition differences</strong>
-                  {generatedMap.unmetTargets.map((message) => (
-                    <span key={message}>{message}</span>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
+          <section className="panel-section export-section">
+            <h2>Save / Load</h2>
+            <button type="button" className="secondary-button full-button" onClick={exportProject}>Export map JSON</button>
+            <button type="button" className="secondary-button full-button" onClick={() => importInputRef.current?.click()}>Import map JSON</button>
+            <input
+              ref={importInputRef}
+              className="sr-only"
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void importProject(file);
+              }}
+            />
+            {generatedMap && (
+              <>
+                <button
+                  type="button"
+                  className="text-button full-button"
+                  onClick={() => navigator.clipboard.writeText(JSON.stringify({ cells, placements: generatedMap.placements }))}
+                >
+                  Copy layout + placements
+                </button>
+                {generatedMap.unmetTargets.length > 0 && (
+                  <div className="target-warning">
+                    <strong>Composition differences</strong>
+                    {generatedMap.unmetTargets.map((message) => <span key={message}>{message}</span>)}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
         </aside>
 
         <MapWorkspace
